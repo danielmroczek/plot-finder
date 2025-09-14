@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="pl">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Plot Finder</title>
+
+    <!-- Pico CSS v2 -->
+    <link
+      rel="stylesheet"
+      href="https://cdn.jsdelivr.net/npm/@picocss/pico@2/css/pico.css"
+    />
+    <!-- Leaflet CSS -->
+    <link
+      rel="stylesheet"
+      href="https://unpkg.com/leaflet@1/dist/leaflet.css"
+    />
+    <link rel="stylesheet" href="main.css" />
+
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+  </head>
+  <body>
+    <main  class="container-fluid" id="app" x-data="plotFinderApp()">
+      <!-- Modal for parcel search -->
+      <dialog
+        :open="showSearchModal"
+        @keydown.escape.window="showSearchModal = false"
+      >
+        <article>
+          <header>
+            <button
+              @click="showSearchModal = false"
+              aria-label="Zamknij"
+              style="
+                position: absolute;
+                top: 0.5em;
+                right: 0.5em;
+                background: none;
+                border: none;
+                font-size: 1.5em;
+                line-height: 1;
+                cursor: pointer;
+              "
+            >
+              <i data-lucide="x"></i>
+            </button>
+            <h3>Wyszukaj działkę</h3>
+          </header>
+          <input
+            type="text"
+            x-model="searchId"
+            placeholder="Identyfikator działki"
+            aria-label="Identyfikator działki"
+            @keydown.enter="$event.stopPropagation(); searchParcelById(); showSearchModal = false;"
+          />
+          <footer>
+            <button @click="showSearchModal = false">Anuluj</button>
+            <button
+              @click="searchParcelById(); showSearchModal = false;"
+              role="button"
+              style="
+                background: var(--pico-primary-background);
+                color: var(--pico-primary-text);
+              "
+            >
+              <i data-lucide="search"></i> Szukaj
+            </button>
+          </footer>
+        </article>
+      </dialog>
+      <nav>
+        <ul>
+          <li>
+            <button @click="showSearchModal = true" aria-label="Szukaj działki">
+              <i data-lucide="search"></i> Szukaj
+            </button>
+          </li>
+
+          <li>
+            <label>
+              <input type="checkbox" x-model="autoCenter" />
+              <span><i data-lucide="locate-fixed"></i> centrowanie</span>
+            </label>
+          </li>
+          <template x-if="orientationSupported">
+            <li>
+              <label>
+                <input type="checkbox" x-model="orientationEnabled" />
+                <span><i data-lucide="compass"></i> Orientacja</span>
+              </label>
+            </li>
+          </template>
+          <li>
+            <label>
+              <input type="checkbox" x-model="showEdges" />
+              <span><i data-lucide="land-plot"></i> Krawędzie</span>
+            </label>
+          </li>
+          <li>
+            <label>
+              <input type="checkbox" x-model="enableMapClickSearch" />
+              <span
+                ><i data-lucide="square-dashed-mouse-pointer"></i> Tryb:
+                kliknij</span
+              >
+            </label>
+          </li>
+        </ul>
+      </nav>
+      <div id="map"></div>
+      <aside class="panel info-panel">
+        <template x-if="error">
+          <div class="error-message" x-text="error"></div>
+        </template>
+        <div>
+          <strong>Twoja pozycja:</strong>
+          <span x-text="formatCoords(userPosition)"></span>
+        </div>
+        <template x-if="derived">
+          <div class="info-block">
+            <div>
+              <strong>Najbliższy wierzchołek:</strong>
+              <span x-text="formatCoords(derived.nearestVertex)"></span> (id:
+              <span x-text="derived.nearestVertex.index"></span>)
+            </div>
+            <div>
+              <strong>Odległość:</strong>
+              <span x-text="formatDistance(derived.distanceToVertexM)"></span>
+            </div>
+            <template x-if="showEdges && derived.edges">
+              <div class="info-block">
+                <div><strong>Krawędzie:</strong></div>
+                <template x-for="edge in derived.edges" :key="edge.edgeIndex">
+                  <div>
+                    Krawędź <span x-text="edge.edgeIndex"></span>:
+                    <span x-text="formatDistance(edge.distanceM)"></span>
+                  </div>
+                </template>
+              </div>
+            </template>
+          </div>
+        </template>
+
+        <template x-if="parcel">
+          <div class="info-block">
+            <div>
+              <strong>Działka:</strong> <span x-text="parcel.id"></span>
+            </div>
+            <div>
+              <strong>Liczba wierzchołków:</strong>
+              <span x-text="parcel.vertexCount"></span>
+            </div>
+            <div>
+              <strong>Region:</strong> <span x-text="parcel.region"></span>
+            </div>
+            <div>
+              <strong>Powiat:</strong> <span x-text="parcel.county"></span>
+            </div>
+            <div>
+              <strong>Gmina:</strong> <span x-text="parcel.commune"></span>
+            </div>
+            <div>
+              <strong>Województwo:</strong>
+              <span x-text="parcel.voivodeship"></span>
+            </div>
+
+          </div>
+        </template>
+      </aside>
+    </main>
+    <!-- Leaflet JS -->
+    <script src="https://unpkg.com/leaflet@1/dist/leaflet.js"></script>
+    <!-- turf.js -->
+    <script src="https://cdn.jsdelivr.net/npm/@turf/turf@6.5.0/turf.min.js"></script>
+
+    <script src="main.js" type="module"></script>
+    <script
+      src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"
+      type="module"
+      defer
+    ></script>
+    <script>
+      document.addEventListener("DOMContentLoaded", () => {
+        if (window.lucide) lucide.createIcons();
+      });
+    </script>
+  </body>
+</html>
