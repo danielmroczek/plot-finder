@@ -18,13 +18,22 @@ export function createMap(darkMode) {
 }
 
 // Geolocation and user position tracking
-export function watchUserPosition(map, onUpdate, onError) {
+export function watchUserPosition(map, showAccuracyCircle, onUpdate, onError) {
   if (!navigator.geolocation) {
     onError('Geolokalizacja nie jest wspierana przez tę przeglądarkę.');
     return null;
   }
-  let userMarker = null;
-  let headingMarker = null;
+  
+  // Clean up existing markers
+  if (map._userMarker) {
+    map.removeLayer(map._userMarker);
+    map._userMarker = null;
+  }
+  if (map._headingMarker) {
+    map.removeLayer(map._headingMarker);
+    map._headingMarker = null;
+  }
+  
   const watchId = navigator.geolocation.watchPosition(
     pos => {
       const userPosition = {
@@ -33,55 +42,72 @@ export function watchUserPosition(map, onUpdate, onError) {
         accuracy: pos.coords.accuracy,
         heading: pos.coords.heading
       };
+      
       // User position marker
-      if (!userMarker) {
-        userMarker = L.circleMarker([userPosition.lat, userPosition.lng], {
-          radius: 8, color: '#007aff', fillColor: '#007aff', fillOpacity: 0.5, weight: 2
-        }).addTo(map);
+      if (!map._userMarker) {
+        if (showAccuracyCircle) {
+          // Show accuracy circle
+          map._userMarker = L.circle([userPosition.lat, userPosition.lng], {
+            radius: userPosition.accuracy || 10,
+            className: 'user-marker'
+          }).addTo(map);
+        } else {
+          // Show small point
+          map._userMarker = L.circleMarker([userPosition.lat, userPosition.lng], {
+            radius: 6,
+            className: 'user-marker'
+          }).addTo(map);
+        }
       } else {
-        userMarker.setLatLng([userPosition.lat, userPosition.lng]);
+        // Check if we need to recreate the marker (type change)
+        const isCurrentlyCircle = !!map._userMarker.setRadius;
+        if (showAccuracyCircle !== isCurrentlyCircle) {
+          map.removeLayer(map._userMarker);
+          if (showAccuracyCircle) {
+            map._userMarker = L.circle([userPosition.lat, userPosition.lng], {
+              radius: userPosition.accuracy || 10,
+              className: 'user-marker'
+            }).addTo(map);
+          } else {
+            map._userMarker = L.circleMarker([userPosition.lat, userPosition.lng], {
+              radius: 6,
+              className: 'user-marker'
+            }).addTo(map);
+          }
+        } else {
+          map._userMarker.setLatLng([userPosition.lat, userPosition.lng]);
+          if (showAccuracyCircle && map._userMarker.setRadius) {
+            map._userMarker.setRadius(userPosition.accuracy || 10);
+          }
+        }
       }
+      
       // Heading marker (triangle/arrow)
-      if (headingMarker) {
-        map.removeLayer(headingMarker);
-        headingMarker = null;
+      if (map._headingMarker) {
+        map.removeLayer(map._headingMarker);
+        map._headingMarker = null;
       }
-      if (userPosition.heading !== null && !isNaN(userPosition.heading)) {
-        // Draw a triangle pointing in the heading direction
-        const r = 18; // px, length of arrow
-        const angleRad = (userPosition.heading - 90) * Math.PI / 180; // -90 to point up
-        // Calculate triangle points in meters (approx)
-        const lat = userPosition.lat;
-        const lng = userPosition.lng;
-        // Approximate meters per degree
-        const dLat = (r / 111320); // 1 deg lat ~ 111.32km
-        const dLng = (r / (40075000 * Math.cos(lat * Math.PI / 180) / 360));
-        // Triangle points
-        const tip = [
-          lat + Math.sin(angleRad) * dLat,
-          lng + Math.cos(angleRad) * dLng
-        ];
-        const left = [
-          lat + Math.sin(angleRad + 2.5) * dLat * 0.6,
-          lng + Math.cos(angleRad + 2.5) * dLng * 0.6
-        ];
-        const right = [
-          lat + Math.sin(angleRad - 2.5) * dLat * 0.6,
-          lng + Math.cos(angleRad - 2.5) * dLng * 0.6
-        ];
-        headingMarker = L.polygon([
-          [tip[0], tip[1]],
-          [left[0], left[1]],
-          [right[0], right[1]]
-        ], {
-          color: '#007aff',
-          fillColor: '#007aff',
-          fillOpacity: 0.7,
-          weight: 1,
-          interactive: false
-        }).addTo(map);
+
+      if (userPosition.heading === null || isNaN(userPosition.heading)) {
+        userPosition.heading = 0; // Default heading if not available
       }
-      onUpdate(userPosition, userMarker);
+      
+      // // Create heading marker using Lucide navigation-2 icon
+      // headingMarker = L.marker([userPosition.lat, userPosition.lng], {
+      //   icon: L.divIcon({
+      //     html: `<span data-lucide="navigation-2" style="transform: rotate(${userPosition.heading}deg) scale(0.8);"></span>`,
+      //     className: 'heading-label',
+      //     iconSize: [20, 20],
+      //     iconAnchor: [10, 10]
+      //   })
+      // }).addTo(map);
+      
+      // // Re-create Lucide icons for the new marker
+      // if (window.lucide) {
+      //   window.lucide.createIcons();
+      // }
+      
+      onUpdate(userPosition, map._userMarker);
     },
     err => {
       onError('Błąd geolokalizacji: ' + err.message);

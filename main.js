@@ -11,9 +11,8 @@ document.addEventListener('alpine:init', () => {
     showSearchModal: false,
     enableMapClickSearch: true,
     autoCenter: true,
-    orientationEnabled: false,
-    orientationSupported: false,
     showEdges: false,
+    showAccuracyCircle: false,
     error: '',
     userPosition: null,
     parcel: null,
@@ -29,10 +28,14 @@ document.addEventListener('alpine:init', () => {
       this.initGeolocation();
       this.map.on('click', e => this.onMapClick(e));
       this.$watch('showEdges', () => this.updateDerived());
+      this.$watch('showAccuracyCircle', () => this.initGeolocation());
     },
 
     initGeolocation() {
-      this.watchId = watchUserPosition(this.map, (pos, marker) => {
+      if (this.watchId) {
+        navigator.geolocation.clearWatch(this.watchId);
+      }
+      this.watchId = watchUserPosition(this.map, this.showAccuracyCircle, (pos, marker) => {
         this.userPosition = pos;
         this.userMarker = marker;
         if (this.autoCenter) {
@@ -172,7 +175,7 @@ document.addEventListener('alpine:init', () => {
             [this.userPosition.lat, this.userPosition.lng],
             [ed.projLat, ed.projLng]
           ];
-          const line = L.polyline(latlngs, { color: '#e67e22', dashArray: '2 8', weight: 2 }).addTo(this.map);
+          const line = L.polyline(latlngs, { className: 'edge-line' }).addTo(this.map);
           this.edgeLines.push(line);
           
           // Add distance label on the edge line
@@ -202,7 +205,7 @@ document.addEventListener('alpine:init', () => {
             const extensionLine = L.polyline([
               [ed.projLat, ed.projLng],
               [nearestPoint[1], nearestPoint[0]]
-            ], { color: '#e67e22', dashArray: '10 5', weight: 1, opacity: 0.7 }).addTo(this.map);
+            ], { className: 'edge-extension-line' }).addTo(this.map);
             this.edgeLines.push(extensionLine);
           }
           
@@ -239,7 +242,7 @@ document.addEventListener('alpine:init', () => {
         this.vertexLine = L.polyline([
           [this.userPosition.lat, this.userPosition.lng],
           [nearest.lat, nearest.lng]
-        ], { color: '#007aff', dashArray: '6 6', weight: 2 }).addTo(this.map);
+        ], { className: 'vertex-line' }).addTo(this.map);
         
         // Add distance label on the vertex line
         const midLat = (this.userPosition.lat + nearest.lat) / 2;
@@ -248,9 +251,7 @@ document.addEventListener('alpine:init', () => {
           icon: L.divIcon({
             html: formatDistance(nearest.distance),
             className: 'distance-label vertex-label',
-            iconSize: [60, 20],
-            // iconAnchor: [30, 10]
-          })
+          }),
         }).addTo(this.map);
         this.edgeLines.push(vertexDistanceLabel);
       }

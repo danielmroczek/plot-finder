@@ -42,7 +42,7 @@ export async function fetchParcelByXY(lng, lat) {
 export function drawParcel(map, geojson) {
   if (map._parcelLayer) map.removeLayer(map._parcelLayer);
   map._parcelLayer = L.geoJSON(geojson, {
-    style: { color: '#e67e22', weight: 3, fillColor: '#f6c177', fillOpacity: 0.3 }
+    className: 'parcel-polygon'
   }).addTo(map);
   map.fitBounds(map._parcelLayer.getBounds(), { maxZoom: 17 });
   // Draw vertex markers with indices
@@ -67,8 +67,14 @@ export function drawParcel(map, geojson) {
 // Geometry calculations
 export function findNearestVertex(coords, userPosition) {
   const userPt = turf.point([userPosition.lng, userPosition.lat]);
+  
+  // Remove the duplicate closing point if it exists (common in polygons)
+  const uniqueCoords = coords[0][0] === coords[coords.length - 1][0] && 
+                       coords[0][1] === coords[coords.length - 1][1] ? 
+                       coords.slice(0, -1) : coords;
+  
   let minDist = Infinity, minIdx = -1;
-  coords.forEach(([lng, lat], i) => {
+  uniqueCoords.forEach(([lng, lat], i) => {
     const dist = turf.distance(userPt, turf.point([lng, lat]), { units: 'meters' });
     if (dist < minDist) {
       minDist = dist;
@@ -76,16 +82,24 @@ export function findNearestVertex(coords, userPosition) {
     }
   });
   if (minIdx === -1) return null;
-  return { index: minIdx, lat: coords[minIdx][1], lng: coords[minIdx][0], distance: minDist };
+  return { index: minIdx, lat: uniqueCoords[minIdx][1], lng: uniqueCoords[minIdx][0], distance: minDist };
 }
 
 export function measureEdges(coords, idx, userPosition) {
   const userPt = [userPosition.lng, userPosition.lat];
-  const prevIdx = (idx - 1 + coords.length) % coords.length;
-  const nextIdx = (idx + 1) % coords.length;
+  
+  // Remove the duplicate closing point if it exists (common in polygons)
+  const uniqueCoords = coords[0][0] === coords[coords.length - 1][0] && 
+                       coords[0][1] === coords[coords.length - 1][1] ? 
+                       coords.slice(0, -1) : coords;
+  
+  const len = uniqueCoords.length;
+  const prevIdx = (idx - 1 + len) % len;
+  const nextIdx = (idx + 1) % len;
+  
   const edges = [
-    { idx: prevIdx, start: coords[prevIdx], end: coords[idx] },
-    { idx: idx, start: coords[idx], end: coords[nextIdx] }
+    { idx: prevIdx, start: uniqueCoords[prevIdx], end: uniqueCoords[idx] },
+    { idx: idx, start: uniqueCoords[idx], end: uniqueCoords[nextIdx] }
   ];
   return edges.map(ed => {
     const distProj = distanceToInfiniteLine(userPt, ed.start, ed.end);

@@ -20,13 +20,12 @@
     <!-- Lucide Icons -->
     <script src="https://unpkg.com/lucide@latest"></script>
   </head>
-  <body>
-    <main  class="container-fluid" id="app" x-data="plotFinderApp()">
+  <body id="app" x-data="plotFinderApp()">
+    
       <!-- Modal for parcel search -->
       <dialog
         :open="showSearchModal"
-        @keydown.escape.window="showSearchModal = false"
-      >
+        @keydown.escape.window="showSearchModal = false">
         <article>
           <header>
             <button
@@ -69,7 +68,7 @@
           </footer>
         </article>
       </dialog>
-      <nav>
+      <nav id="controls">
         <ul>
           <li>
             <button @click="showSearchModal = true" aria-label="Szukaj działki">
@@ -83,18 +82,17 @@
               <span><i data-lucide="locate-fixed"></i> centrowanie</span>
             </label>
           </li>
-          <template x-if="orientationSupported">
-            <li>
-              <label>
-                <input type="checkbox" x-model="orientationEnabled" />
-                <span><i data-lucide="compass"></i> Orientacja</span>
-              </label>
-            </li>
-          </template>
+
           <li>
             <label>
               <input type="checkbox" x-model="showEdges" />
               <span><i data-lucide="land-plot"></i> Krawędzie</span>
+            </label>
+          </li>
+          <li>
+            <label>
+              <input type="checkbox" x-model="showAccuracyCircle" />
+              <span><i data-lucide="circle-dot"></i> Kółko dokładności</span>
             </label>
           </li>
           <li>
@@ -108,14 +106,18 @@
           </li>
         </ul>
       </nav>
-      <div id="map"></div>
-      <aside class="panel info-panel">
+      <section id="map"></section>
+      <section id="info">
         <template x-if="error">
           <div class="error-message" x-text="error"></div>
         </template>
         <div>
           <strong>Twoja pozycja:</strong>
           <span x-text="formatCoords(userPosition)"></span>
+        </div>
+          <div>
+          <strong>dokładność pozycji:</strong>
+          <span x-text="userPosition.accuracy + ' m'"></span>
         </div>
         <template x-if="derived">
           <div class="info-block">
@@ -167,8 +169,8 @@
 
           </div>
         </template>
-      </aside>
-    </main>
+      </section>
+    
     <!-- Leaflet JS -->
     <script src="https://unpkg.com/leaflet@1/dist/leaflet.js"></script>
     <!-- turf.js -->
