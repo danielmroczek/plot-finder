@@ -65,13 +65,8 @@ export function drawParcel(map, geojson) {
 }
 
 // Geometry calculations
-export function findNearestVertex(coords, userPosition) {
+export function findNearestVertex(uniqueCoords, userPosition) {
   const userPt = turf.point([userPosition.lng, userPosition.lat]);
-  
-  // Remove the duplicate closing point if it exists (common in polygons)
-  const uniqueCoords = coords[0][0] === coords[coords.length - 1][0] && 
-                       coords[0][1] === coords[coords.length - 1][1] ? 
-                       coords.slice(0, -1) : coords;
   
   let minDist = Infinity, minIdx = -1;
   uniqueCoords.forEach(([lng, lat], i) => {
@@ -85,13 +80,8 @@ export function findNearestVertex(coords, userPosition) {
   return { index: minIdx, lat: uniqueCoords[minIdx][1], lng: uniqueCoords[minIdx][0], distance: minDist };
 }
 
-export function measureEdges(coords, idx, userPosition) {
+export function measureEdges(uniqueCoords, idx, userPosition) {
   const userPt = [userPosition.lng, userPosition.lat];
-  
-  // Remove the duplicate closing point if it exists (common in polygons)
-  const uniqueCoords = coords[0][0] === coords[coords.length - 1][0] && 
-                       coords[0][1] === coords[coords.length - 1][1] ? 
-                       coords.slice(0, -1) : coords;
   
   const len = uniqueCoords.length;
   const prevIdx = (idx - 1 + len) % len;

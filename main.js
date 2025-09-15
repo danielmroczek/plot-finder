@@ -103,7 +103,15 @@ document.addEventListener('alpine:init', () => {
         console.log('geo', geo);
       }
       this.searchId = this.parcel.id;
-      this.parcel.vertexCount = geo.coordinates[0].length - 1;
+      
+      // Calculate unique coordinates once and store them
+      const coords = geo.coordinates[0];
+      const uniqueCoords = coords[0][0] === coords[coords.length - 1][0] && 
+                          coords[0][1] === coords[coords.length - 1][1] ? 
+                          coords.slice(0, -1) : coords;
+      
+      this.parcel.uniqueCoords = uniqueCoords;
+      this.parcel.vertexCount = uniqueCoords.length;
       this.parcelLayer = drawParcel(this.map, geo);
       this.updateDerived();
     },
@@ -148,13 +156,10 @@ document.addEventListener('alpine:init', () => {
         }
         return;
       }
-      // Zbierz wierzchołki z polygonu
-      let coords = null;
-      if (this.parcelLayer && this.parcelLayer.getLayers().length > 0) {
-        const geo = this.parcelLayer.getLayers()[0].feature.geometry;
-        coords = geo.type === 'Polygon' ? geo.coordinates[0] : null;
-      }
+      // Use stored unique coordinates
+      const coords = this.parcel.uniqueCoords;
       if (!coords) return;
+      
       // Najbliższy wierzchołek
       const nearest = findNearestVertex(coords, this.userPosition);
       let edges = [];
